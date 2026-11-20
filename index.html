@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Twisted League - Guitar Studio</title>
+    <!-- AlphaTab Engine -->
+    <script src="https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/alphaTab.js"></script>
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .controls-container {
+            position: sticky;
+            top: 10px;
+            z-index: 1000;
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 10px;
+            width: 100%;
+            max-width: 1200px;
+            flex-wrap: wrap;
+            box-sizing: border-box;
+        }
+
+        button, select, input[type="file"]::file-selector-button {
+            background: #ff6b35;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover, select:hover, input[type="file"]::file-selector-button:hover {
+            background: #e55a2b;
+        }
+
+        select, input[type="file"] {
+            background: #333;
+            color: white;
+            border: 1px solid #444;
+            border-radius: 5px;
+            padding: 8px;
+        }
+
+        .loop-range-group {
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #222;
+            padding: 6px 10px;
+            border-radius: 5px;
+            border: 1px solid #3a3a3a;
+            font-size: 14px;
+        }
+
+        .loop-range-group input[type="number"] {
+            width: 55px;
+            padding: 6px;
+            background: #333;
+            color: #fff;
+            border: 1px solid #444;
+            border-radius: 4px;
+        }
+
+        #speedSlider {
+            vertical-align: middle;
+            margin-left: 10px;
+        }
+
+        /* Scale Studio Drawer Styles */
+        #editor-drawer {
+            display: none;
+            background: #222;
+            width: 100%;
+            max-width: 1200px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #444;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+
+        .editor-panel {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 15px;
+            background: #1a1a1a;
+            border-bottom: 1px solid #333;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .editor-info {
+            color: #888;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .editor-tools {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        textarea {
+            width: 100%;
+            height: 150px;
+            background: #000;
+            color: #0f0;
+            font-family: 'Courier New', Courier, monospace;
+            border: none;
+            padding: 15px;
+            box-sizing: border-box;
+            resize: vertical;
+            border-radius: 0 0 8px 8px;
+        }
+
+        #status {
+            width: 100%;
+            max-width: 1200px;
+            color: #0f0;
+            font-family: monospace;
+            margin-bottom: 20px;
+            padding-left: 5px;
+            box-sizing: border-box;
+        }
+
+        #alphaTab {
+            background: #ffffff;
+            width: 100%;
+            max-width: 1200px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            min-height: 400px;
+            user-select: none;
+        }
+
+        /* Playback cursor & loop selection styling */
+        .at-cursor-bar {
+            background: rgba(255, 107, 53, 0.2);
+        }
+        .at-cursor-beat {
+            background: rgba(255, 107, 53, 0.85);
+            width: 3px;
+        }
+        .at-highlight * {
+            fill: #ff6b35;
+            stroke: #ff6b35;
+        }
+        .at-selection div {
+            background: rgba(30, 144, 255, 0.25);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="controls-container">
+        <button id="playBtn">⏯ Play</button>
+        <button id="loopBtn" style="background: #1E90FF;">🔁 Loop: OFF</button>
+
+        <div class="loop-range-group">
+            Bars:
+            <input type="number" id="loopStartBar" min="1" placeholder="1">
+            to
+            <input type="number" id="loopEndBar" min="1" placeholder="4">
+            <button id="setLoopRangeBtn" style="background: #1E90FF; padding: 6px 12px;">Set</button>
+            <button id="clearLoopRangeBtn" style="background: #555; padding: 6px 12px;">Clear</button>
+        </div>
+
+        <button id="muteBtn" style="background: #ff4444;">🔇 Mute: OFF</button>
+        <button id="toggleStudioBtn" style="background: #2E8B57;">🎸 Open Scale Studio</button>
+
+        <div style="color: white; display: flex; align-items: center;">
+            Speed: <span id="speedLabel" style="margin-left:5px;">100%</span>
+            <input type="range" id="speedSlider" min="0.25" max="2.0" step="0.05" value="1.0">
+        </div>
+
+        <input type="file" id="fileInput" accept=".gp3,.gp4,.gp5,.gpx,.gp,.xml,.mxl,.tex,.txt">
+        <select id="trackSelect"><option value="">Awaiting File...</option></select>
+    </div>
+
+    <!-- Scale Studio Code Drawer -->
+    <div id="editor-drawer">
+        <div class="editor-panel">
+            <div class="editor-info">
+                AlphaTex Machine Logic: String 6 = Low E | Format = fret.string (e.g., 0.6 = Open Low E, 3.5 = C on A-string).<br>
+                Separate notes with spaces. Use | for bar lines. Add durations like .8 for eighth notes.
+            </div>
+            <div class="editor-tools">
+                <button id="saveFileBtn" style="background: #1E90FF;">💾 Save File</button>
+                <select id="templateSelect">
+                    <option value="">-- Load Framework Template --</option>
+                    <option value="e_major">E Major Scale (Open Position)</option>
+                    <option value="c_major">C Major Scale (5th String Root)</option>
+                    <option value="zakk_riff">Zakk Wylde Pinch Harmonic Riff</option>
+                </select>
+                <button id="renderTextBtn" style="background: #2E8B57;">Compile & Render</button>
+            </div>
+        </div>
+        <textarea id="alphaTexInput" placeholder="Enter AlphaTex code here..."></textarea>
+    </div>
+
+    <div id="status">> SYSTEM_READY: Awaiting data feed.</div>
+    <div id="alphaTab"></div>
+
+    <script>
+        const element = document.querySelector('#alphaTab');
+        const statusDiv = document.querySelector('#status');
+        const isLocalFile = window.location.protocol === 'file:';
+
+        function logStatus(msg) {
+            if (statusDiv) statusDiv.innerText = msg;
+        }
+
+        // AlphaTab Engine Initialization
+        const api = new alphaTab.AlphaTabApi(element, {
+            core: {
+                engine: 'svg',
+                useWorkers: !isLocalFile,
+                fontDirectory: 'https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/font/'
+            },
+            display: {
+                layoutMode: alphaTab.LayoutMode.Page,
+                staveProfile: 'ScoreTab'
+            },
+            notation: {
+                rhythmMode: 'ShowWithBars'
+            },
+            player: {
+                playerMode: alphaTab.PlayerMode.EnabledAutomatic,
+                scrollOffsetY: -120,
+                outputMode: isLocalFile
+                    ? alphaTab.PlayerOutputMode.WebAudioScriptProcessor
+                    : alphaTab.PlayerOutputMode.WebAudioAudioWorklets,
+                soundFont: 'https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/soundfont/sonivox.sf2'
+            }
+        });
+
+        // AlphaTex Templates
+        const templates = {
+            e_major: `\\title "E Major Scale - Open Geography"
+\\tempo 100
+.
+0.6.4 2.6 4.6 0.5 2.5 4.5 | 1.4 2.4 4.4 1.3 2.3 4.3 | 0.2 2.2 4.2 0.1 2.1 4.1 5.1`,
+
+            c_major: `\\title "C Major Scale - Movable Shape"
+\\tempo 100
+.
+3.5.4 5.5 2.4 3.4 5.4 2.3 | 4.3 5.3`,
+
+            zakk_riff: `\\title "Heavy Pentatonic Sequence"
+\\tempo 110
+.
+0.6.8 3.6 5.6 3.6 5.6{v} 0.6 3.6 | 5.6{ph} 3.6 0.6 3.5 5.5 0.6.4`
+        };
+
+        // Scale Studio Toggle
+        const toggleStudioBtn = document.querySelector('#toggleStudioBtn');
+        const editorDrawer = document.querySelector('#editor-drawer');
+        let studioOpen = false;
+
+        toggleStudioBtn.addEventListener('click', () => {
+            studioOpen = !studioOpen;
+            editorDrawer.style.display = studioOpen ? 'flex' : 'none';
+            toggleStudioBtn.innerText = studioOpen ? '❌ Close Scale Studio' : '🎸 Open Scale Studio';
+            toggleStudioBtn.style.background = studioOpen ? '#444' : '#2E8B57';
+            if (studioOpen) {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                logStatus('> STUDIO_OPEN: Pick a template or enter AlphaTex.');
+            }
+        });
+
+        // Load Template
+        const templateSelect = document.querySelector('#templateSelect');
+        const alphaTexInput = document.querySelector('#alphaTexInput');
+        templateSelect.addEventListener('change', (e) => {
+            const selected = e.target.value;
+            if (selected && templates[selected]) {
+                alphaTexInput.value = templates[selected];
+                logStatus(`> TEMPLATE_LOADED: ${selected} — rendering...`);
+                api.tex(templates[selected], [0]);
+            }
+        });
+
+        // Render Custom AlphaTex
+        document.querySelector('#renderTextBtn').addEventListener('click', () => {
+            const textContent = alphaTexInput.value.trim();
+            if (!textContent) {
+                logStatus('> ERROR: AlphaTex box is empty. Pick a template or type notes first.');
+                return;
+            }
+            logStatus('> COMPILING: Parsing AlphaTex geometry...');
+            try {
+                api.tex(textContent, [0]);
+            } catch (err) {
+                logStatus(`> COMPILER_ERROR: ${err.message}`);
+            }
+        });
+
+        // Audio State Variables
+        let isLooping = false;
+        let isMuted = false;
+
+        // Engine Event Listeners
+        api.soundFontLoaded.on(() => { logStatus('> SYSTEM_READY: SoundFont loaded.'); });
+        api.playerReady.on(() => { logStatus('> PLAYER_READY: Audio engine online.'); });
+        api.renderFinished.on(() => { logStatus('> RENDER_COMPLETE: Tab ready.'); });
+        api.error.on((e) => { logStatus(`> FATAL_ERROR: ${e.message}`); });
+
+        // Player Controls
+        const loopBtn = document.querySelector('#loopBtn');
+        const loopStartInput = document.querySelector('#loopStartBar');
+        const loopEndInput = document.querySelector('#loopEndBar');
+
+        document.querySelector('#playBtn').addEventListener('click', () => api.playPause());
+
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && document.activeElement.tagName !== 'TEXTAREA' && document.activeElement.tagName !== 'INPUT') {
+                e.preventDefault();
+                api.playPause();
+            }
+        });
+
+        loopBtn.addEventListener('click', () => {
+            isLooping = !isLooping;
+            api.isLooping = isLooping;
+            loopBtn.innerText = isLooping ? '🔁 Loop: ON' : '🔁 Loop: OFF';
+            loopBtn.style.background = isLooping ? '#2E8B57' : '#1E90FF';
+        });
+
+        // Bar-Range Loop Controls
+        document.querySelector('#setLoopRangeBtn').addEventListener('click', () => {
+            const score = api.score;
+            if (!score || !score.masterBars.length) {
+                logStatus('> ERROR: Load a tab before setting a bar loop.');
+                return;
+            }
+
+            const totalBars = score.masterBars.length;
+            const startNum = Math.max(1, Math.min(totalBars, parseInt(loopStartInput.value, 10) || 1));
+            const endNum = Math.max(startNum, Math.min(totalBars, parseInt(loopEndInput.value, 10) || startNum));
+
+            loopStartInput.value = startNum;
+            loopEndInput.value = endNum;
+
+            const startBar = score.masterBars[startNum - 1];
+            const endBar = score.masterBars[endNum - 1];
+
+            api.playbackRange = {
+                startTick: startBar.start,
+                endTick: endBar.start + endBar.calculateDuration()
+            };
+
+            isLooping = true;
+            api.isLooping = true;
+            loopBtn.innerText = '🔁 Loop: ON';
+            loopBtn.style.background = '#2E8B57';
+
+            logStatus(`> LOOP_SET: Bars ${startNum} to ${endNum} (of ${totalBars})`);
+        });
+
+        document.querySelector('#clearLoopRangeBtn').addEventListener('click', () => {
+            api.playbackRange = null;
+            loopStartInput.value = '';
+            loopEndInput.value = '';
+            logStatus('> LOOP_CLEARED: Full track active.');
+        });
+
+        document.querySelector('#muteBtn').addEventListener('click', (e) => {
+            isMuted = !isMuted;
+            api.masterVolume = isMuted ? 0 : 1;
+            e.target.innerText = isMuted ? '🔇 Mute: ON' : '🔇 Mute: OFF';
+            e.target.style.background = isMuted ? '#8b0000' : '#ff4444';
+        });
+
+        // Speed Control
+        const speedLabel = document.querySelector('#speedLabel');
+        document.querySelector('#speedSlider').addEventListener('input', (e) => {
+            const speed = parseFloat(e.target.value);
+            api.playbackSpeed = speed;
+            speedLabel.innerText = Math.round(speed * 100) + '%';
+        });
+
+        // Track Selector Populator
+        api.scoreLoaded.on((score) => {
+            const trackSelect = document.querySelector('#trackSelect');
+            if (!trackSelect || !score.tracks || score.tracks.length === 0) return;
+
+            const currentTrackIndex = api.tracks.length > 0 ? api.tracks[0].index : 0;
+            trackSelect.innerHTML = '';
+            score.tracks.forEach((track, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.innerText = track.name || `Track ${index + 1}`;
+                if (index === currentTrackIndex) option.selected = true;
+                trackSelect.appendChild(option);
+            });
+
+            // Reset bar loop bounds for the new song
+            const totalBars = score.masterBars ? score.masterBars.length : 1;
+            loopStartInput.max = totalBars;
+            loopEndInput.max = totalBars;
+            loopStartInput.value = '';
+            loopEndInput.value = '';
+            api.playbackRange = null;
+
+            logStatus(`> SCORE_LOADED: ${score.title || 'Untitled'} (${score.tracks.length} tracks, ${totalBars} bars)`);
+        });
+
+        document.querySelector('#trackSelect').addEventListener('change', (e) => {
+            const trackIndex = parseInt(e.target.value, 10);
+            const score = api.score;
+            if (score && score.tracks[trackIndex]) {
+                api.renderTracks([score.tracks[trackIndex]]);
+                logStatus(`> TRACK_SWITCH: Rendered [${score.tracks[trackIndex].name}]`);
+            }
+        });
+
+        // File Loader
+        document.querySelector('#fileInput').addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                const file = e.target.files[0];
+                logStatus(`> DATA_FEED: Ingesting [${file.name}]...`);
+
+                const reader = new FileReader();
+                const lowerName = file.name.toLowerCase();
+                const isTextFile = lowerName.endsWith('.tex') || lowerName.endsWith('.txt');
+
+                reader.onload = (event) => {
+                    try {
+                        if (isTextFile) {
+                            alphaTexInput.value = event.target.result;
+                            api.tex(event.target.result, [0]);
+                        } else {
+                            api.load(new Uint8Array(event.target.result));
+                        }
+                    } catch (err) {
+                        logStatus(`> INGESTION_ERROR: ${err.message}`);
+                    }
+                };
+
+                if (isTextFile) {
+                    reader.readAsText(file);
+                } else {
+                    reader.readAsArrayBuffer(file);
+                }
+            }
+        });
+
+        // File Exporter
+        document.querySelector('#saveFileBtn').addEventListener('click', () => {
+            const textContent = alphaTexInput.value;
+            if (!textContent.trim()) {
+                logStatus('> ERROR: No data to save. Text box is empty.');
+                return;
+            }
+
+            let fileName = "custom_tab.txt";
+            const titleMatch = textContent.match(/\\title\s+"([^"]+)"/);
+            if (titleMatch && titleMatch[1]) {
+                fileName = titleMatch[1].replace(/[^a-z0-9]/gi, '_').toLowerCase() + ".txt";
+            }
+
+            const blob = new Blob([textContent], { type: 'text/plain' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(a.href);
+
+            logStatus(`> EXPORT_SUCCESS: Saved as ${fileName}`);
+        });
+    </script>
+</body>
+</html>
